@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 로그인 — ShareWe</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e3a8a, #2563eb);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .card {
+      background: #fff; border-radius: 24px; padding: 48px 40px;
+      width: 100%; max-width: 420px; box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+    }
+    .logo { text-align: center; margin-bottom: 32px; }
+    .logo .app-name { font-size: 1.8rem; font-weight: 800; color: #2563eb; }
+    .logo .sub { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+    h2 { font-size: 1.3rem; font-weight: 700; color: #0f172a; margin-bottom: 28px; text-align: center; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 7px; }
+    input {
+      width: 100%; padding: 12px 16px; border: 1.5px solid #e2e8f0;
+      border-radius: 10px; font-family: inherit; font-size: 0.95rem;
+      color: #0f172a; outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: #2563eb; }
+    .btn {
+      width: 100%; padding: 14px; margin-top: 8px;
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      color: #fff; border: none; border-radius: 10px;
+      font-family: inherit; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(37,99,235,0.4); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .error {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: 12px 16px; border-radius: 8px; font-size: 0.88rem;
+      margin-bottom: 16px; display: none;
+    }
+    .back { text-align: center; margin-top: 20px; }
+    .back a { color: #94a3b8; font-size: 0.85rem; text-decoration: none; }
+    .back a:hover { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="app-name">ShareWe</div>
+      <div class="sub">관리자 페이지</div>
+    </div>
+    <h2>로그인</h2>
+    <div class="error" id="error"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>이메일</label>
+        <input type="email" id="email" placeholder="admin@sharewe.kr" required />
+      </div>
+      <div class="form-group">
+        <label>비밀번호</label>
+        <input type="password" id="password" placeholder="비밀번호 입력" required />
+      </div>
+      <button type="submit" class="btn" id="loginBtn">로그인</button>
+    </form>
+    <div class="back"><a href="/">← 홈으로</a></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js';
+    import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCsks3_8Ht1wqhlO6xf2CJpmxxHEIMueJA",
+      authDomain: "weshare-bf718.firebaseapp.com",
+      projectId: "weshare-bf718",
+      storageBucket: "weshare-bf718.firebasestorage.app",
+      messagingSenderId: "1031016957737",
+      appId: "1:1031016957737:web:e386d6d2e6027d87949938"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 이미 로그인된 경우 대시보드로
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+        if (adminDoc.exists()) {
+          window.location.href = '/admin/dashboard.html';
+        }
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '로그인 중...';
+
+      try {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+
+        // 관리자 권한 확인
+        const adminDoc = await getDoc(doc(db, 'admins', cred.user.uid));
+        if (!adminDoc.exists()) {
+          await auth.signOut();
+          throw new Error('관리자 권한이 없습니다.');
+        }
+        window.location.href = '/admin/dashboard.html';
+      } catch (err) {
+        let msg = '로그인에 실패했습니다.';
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') msg = '이메일 또는 비밀번호가 올바르지 않습니다.';
+        else if (err.code === 'auth/user-not-found') msg = '존재하지 않는 계정입니다.';
+        else if (err.message) msg = err.message;
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '로그인';
+      }
+    });
+  </script>
+</body>
+</html>
