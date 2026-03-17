@@ -765,21 +765,46 @@
       }
     });
 
-    // Netlify form submit
-    const form = document.getElementById('contactForm');
-    if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const data = new FormData(form);
-        try {
-          await fetch('/', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: new URLSearchParams(data).toString() });
-          form.style.display = 'none';
-          document.getElementById('formSuccess').style.display = 'block';
-        } catch {
-          alert('전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    // Firebase 문의 폼 → Firestore 저장
+    import('https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js').then(({ initializeApp }) => {
+      import('https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js').then(({ getFirestore, collection, addDoc, serverTimestamp }) => {
+        const app = initializeApp({
+          apiKey: "AIzaSyCsks3_8Ht1wqhlO6xf2CJpmxxHEIMueJA",
+          authDomain: "weshare-bf718.firebaseapp.com",
+          projectId: "weshare-bf718",
+          storageBucket: "weshare-bf718.firebasestorage.app",
+          messagingSenderId: "1031016957737",
+          appId: "1:1031016957737:web:e386d6d2e6027d87949938"
+        }, 'landing');
+        const db = getFirestore(app);
+
+        const form = document.getElementById('contactForm');
+        if (form) {
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('.btn-submit');
+            btn.disabled = true;
+            btn.textContent = '전송 중...';
+            try {
+              await addDoc(collection(db, 'inquiries'), {
+                name: form.querySelector('[name="name"]').value || '',
+                email: form.querySelector('[name="email"]').value,
+                type: form.querySelector('[name="type"]').value,
+                subject: form.querySelector('[name="subject"]').value,
+                message: form.querySelector('[name="message"]').value,
+                createdAt: serverTimestamp(),
+              });
+              form.style.display = 'none';
+              document.getElementById('formSuccess').style.display = 'block';
+            } catch (err) {
+              btn.disabled = false;
+              btn.textContent = '문의 보내기';
+              alert('전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            }
+          });
         }
       });
-    }
+    });
   </script>
 </body>
 </html>
